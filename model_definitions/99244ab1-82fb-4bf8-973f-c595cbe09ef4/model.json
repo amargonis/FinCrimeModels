@@ -1,0 +1,9 @@
+{
+  "id": "99244ab1-82fb-4bf8-973f-c595cbe09ef4",
+  "name": "Standard Gradient Boosted Model",
+  "description": "Lightgbm based classification model",
+  "language": "python",
+  "automation": {
+      "docker": {"trainerImage": "dartov/aoa-java-trainer:3.6.8"}
+    }
+}

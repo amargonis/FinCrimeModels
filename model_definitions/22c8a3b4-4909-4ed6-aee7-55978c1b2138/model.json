@@ -1,0 +1,11 @@
+{
+    "id": "22c8a3b4-4909-4ed6-aee7-55978c1b2138",
+    "name": "Fincrime_Bustout",
+    "description": "Bustout fraud detection using open source",
+    "language": "python",
+    "automation" : {
+        "docker" : {
+            "trainerImage": "dartov/aoa-java-trainer:3.6.8"
+        }
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "hyperParameters": {
+        "NumTrees": 100,
+        "MaxDepth": 4,
+        "MinNodeSize":1,
+        "Variance":0.0,
+        "Mtry":"'3'",
+        "MtrySeed":"'100'",
+        "Seed":"'100'"
+    },
+    "project_db": "fincrime_aml_dev",
+    "mdl_tbl": "aml_mle_sup_mdl",
+    "mdl_mon_tbl": "aml_mle_sup_mtr"
+}

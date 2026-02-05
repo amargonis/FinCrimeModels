@@ -1,0 +1,24 @@
+{
+    "hostname": "tdprd.td.teradata.com",
+    "src_db": "fincrime_src_dev",
+    "features_db": "fincrime_features_dev",
+    "project_db": "fincrime_aml_dev",
+    "featureset_id": "aml_superv_00",
+    "entity_info":"party",
+    "features_tbl":"transaction_agg",
+    "train_test_split_tbl":"train_test_instances",
+    "features_to_featureset_tbl": "model_features_ds_filtered",
+    "feature_metadata_tbl": "feature_metadata_ds",
+    "predict_tbl": "aml_mle_sup_pred",
+    "roc_input_tbl": "aml_mle_sup_roc_in",
+    "evaluation_tbl": "aml_mle_sup_eval",
+    "explain_model": {
+        "explain_grp": "TN",
+        "tn_select_rule":"count",
+        "tn_select_value": 10,
+        "tn_select_grp": "top",
+        "tree_model_file": "aml_mle_sup_tree_model",
+        "model_tree_col": "tree",
+        "shap_values_tbl": "aml_mle_sup_shap_val"
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "id": "bedda776-2ce7-4b53-b183-fad5d3b28192",
+    "name": "Account Take over",
+    "description": "Real-time detection of potential ATO attacks via mobile and digital channels",
+    "language": "python",
+    "automation" : {
+        "docker" : {
+            "trainerImage": "dartov/aoa-java-trainer:3.6.8"
+        }
+    }
+}

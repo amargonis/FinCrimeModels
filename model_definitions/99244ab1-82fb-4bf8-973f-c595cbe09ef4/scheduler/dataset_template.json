@@ -1,0 +1,15 @@
+{
+    "hostname": "tdprd2.td.teradata.com",
+    "src_db": "fincrime_src_dev",
+    "features_db": "fincrime_agg_dev",
+    "db_name": "fincrime_aml_dev",
+    "mdl_id": "aml_superv_00",
+    "party_info":"party",
+    "dataset":"transaction_agg",
+    "train_test_split":"train_test_instances",
+    "model_features": "model_features_wo_nulls",
+    "feature_metadata": "feature_metadata",
+    "predict_tbl": "fc_aml_predictions_lightgbm",
+    "predict_tbl_for_roc": "fc_aml_predictions_for_roc",
+    "evaluation_tbl": "fc_aml_evaluation_lightgbm"
+}

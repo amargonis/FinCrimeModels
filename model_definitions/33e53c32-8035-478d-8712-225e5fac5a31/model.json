@@ -1,0 +1,11 @@
+{
+    "id": "33e53c32-8035-478d-8712-225e5fac5a31",
+    "name": "Unknown, Unknown Detection",
+    "description": "User configured clusters and weight-based anomaly detection with Alert pipeline",
+    "language": "python",
+    "automation" : {
+        "docker" : {
+            "trainerImage": "dartov/aoa-java-trainer:3.6.8"
+        }
+    }
+}

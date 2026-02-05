@@ -1,0 +1,5 @@
+lightgbm==2.3.0
+pypmml==0.9.7
+sklearn-pandas==2.0.0
+sklearn-pmml-model==0.0.15
+sklearn2pmml==0.61.0

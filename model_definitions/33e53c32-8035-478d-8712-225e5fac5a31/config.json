@@ -1,0 +1,14 @@
+{
+  "hyperParameters": {
+    "init":"k-means++",
+    "max_iter":300,
+    "n_init":10,
+    "training_date":"DATE '2021-11-30'",
+    "scoring_date":"CURRENT_DATE",
+    "max_clusters": 8,
+    "cluster_mode": "fixed",
+    "alert_threshold" : 0.5,
+    "recency_threshold":30,
+    "similarity_threshold":0.8     
+  }
+}

@@ -1,0 +1,13 @@
+{
+ "hostname": "tdprd2.td.teradata.com",
+ "ADS_db_name": "fincrime_bustout_dev",
+ "Score_ADS_name": "BO_Score_ADS_1",
+ "column_to_preserve": "acct_no",
+ "Date_col_name": "fc_agg_summary_date",
+ "local_explainabilty_threshold" : 0.5,
+ "datascience_db": "fincrime_bustout_dev",
+ "alert_db":"fincrime_bustout_dev",
+ "alert_threshold" : 0.5,
+ "recency_threshold":10,
+ "similarity_threshold":0.8 
+}

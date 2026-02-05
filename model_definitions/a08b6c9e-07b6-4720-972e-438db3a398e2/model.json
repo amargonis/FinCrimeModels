@@ -1,0 +1,10 @@
+{
+    "id": "a08b6c9e-07b6-4720-972e-438db3a398e2",
+    "name": "AML MLE-Based Supervised Model",
+    "description": "AML supervised model using DF",
+    "language": "python",
+    "automation": {
+    "trainDatasetId": "4ba9c5d0-6428-4aee-b11d-47708599922d",
+    "evaluateDatasetId": "4ba9c5d0-6428-4aee-b11d-47708599922d"
+  }
+}

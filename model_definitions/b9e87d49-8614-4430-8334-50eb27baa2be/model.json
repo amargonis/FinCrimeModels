@@ -1,0 +1,11 @@
+{
+    "id": "b9e87d49-8614-4430-8334-50eb27baa2be",
+    "name": "First Party Bustout",
+    "description": "First Party Bustout Fraud - with Alert pipeline",
+    "language": "python",
+    "automation" : {
+        "docker" : {
+            "trainerImage": "dartov/aoa-java-trainer:3.6.8"
+        }
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "hostname": "tdprd.td.teradata.com",
+    "src_db": "fincrime_src_dev",
+    "features_db": "fincrime_features_dev",
+    "project_db": "fincrime_aml_dev",
+    "featureset_id": "aml_superv_00",
+    "entity_info":"party",
+    "features_tbl":"transaction_agg",
+    "features_to_featureset_tbl": "model_features_ds_filtered",
+    "feature_metadata_tbl": "feature_metadata_ds",
+    "predict_tbl": "fc_aml_predictions",
+    "start_date": "{{ start_date }}",
+    "end_date": "{{ end_date }}"
+}

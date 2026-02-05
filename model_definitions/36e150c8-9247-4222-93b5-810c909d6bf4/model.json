@@ -1,0 +1,6 @@
+{
+    "id": "36e150c8-9247-4222-93b5-810c909d6bf4",
+    "name": "AML Unsupervised Explainability - version 1",
+    "description": "Version 1 model for unsupervised transaction monitoring for AML",
+    "language": "python"
+}

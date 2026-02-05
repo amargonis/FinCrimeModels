@@ -1,0 +1,9 @@
+{
+  "hostname": "44.232.94.89",
+  "featureStore_db_name": "HCLS",
+  "dataScience_db_name": "HCLS_modelstudio",
+  "metadata_db_name": "HCLS_modelstudio",
+  "featureSetVersion": "1",
+  "featureSetId": "1",
+  "alert_db":"HCLS_modelstudio"
+}
