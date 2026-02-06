@@ -233,19 +233,21 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
 
     # 1.0
     #
-    # Cluster objects that have not already been clustered by first clustering all then applying old clustering value back to new parties
+    # Cluster objects that have not already been clustered by first clustering 
+    #  all then applying old clustering value back to new parties
     # until I figure out the SQL and fix the rest of the duplicated code.
     # score_clustering == none = do not execute clustering during scoring operation
     # score_clustering == new = cluster only objects that are not already in a cluster
-    # score_clustering == all = cluster all objects.  This may result in an object changing clusters if activity has changed
+    # score_clustering == all = cluster all objects.  
+    # This may result in an object changing clusters if activity has changed
     if hyperparams["score_clustering"] != "none":
-        recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, modelId, modelVersion, conn)
+        recluster(tdFC, data_conf, featureSetId, featureSetVersion, 
+            hyperparams, modelId, modelVersion, conn)
 
     # 2.0
     #
     # Get the data set from the feature calculator for the scoring operation 
     print("step_2")
-    #dfScoreData, objectType = tdFC.getFeatureSetwithCluster(featureSetId, featureSetVersion, modelVersion, hyperparams['training_date'], hyperparams['scoring_date'],conn )
     anomaly_features_names,anomaly_features_pos_weights,anomaly_features_neg_weights,objectType = tdFC.getClusteredFeatureWeights(featureSetId, featureSetVersion, conn)
 
 
@@ -285,10 +287,10 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
     for feature_name in anomaly_features_names:
         #feature_name = featureRow['column_name']
         sql = f"""
-                insert into {data_conf["dataScience_db_name"]}.anomaly_result_details 
-                
-                select '{modelVersion}' as datascience_model_version, '{modelId}' as datascience_model_id, 
-                '{objectType}', {objectType}, {hyperparams['training_date']}, CURRENT_DATE,
+            insert into {data_conf["dataScience_db_name"]}.anomaly_result_details 
+            select '{modelVersion}' as datascience_model_version, 
+                '{modelId}' as datascience_model_id, '{objectType}',
+                {objectType}, {hyperparams['training_date']}, CURRENT_DATE,
                 '{feature_name}' as feature, {feature_name} as feature_value,
                 case 
                     when feature_value > avg_value and std_value > 0
@@ -298,20 +300,20 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
                     else 0 
                 end as feature_score
 
-                from {data_conf["metadata_db_name"]}.v_model_feature mf ,
+            from {data_conf["metadata_db_name"]}.v_model_feature mf ,
                 {data_conf["featureStore_db_name"]}.{modelViewName} md
-                JOIN {data_conf["dataScience_db_name"]}.v_lastest_object_cluster cr on ( 
-                    md.{objectType} = cr.object_id )
-                join {data_conf["dataScience_db_name"]}.cluster_explainability ce on (
-                    ce.cluster_id = cr.cluster_id) 
-                where md.fc_agg_summary_date = {hyperparams['training_date']}
-                    and mf.column_name = '{feature_name}'
-                    and ce.feature = '{feature_name}'
-                    and cr.datascience_model_version = '{modelVersion}' 
-                    and ce.datascience_model_version = '{modelVersion}' 
-                    and is_anomaly = 1 
-                    and model_id= {featureSetId} 
-                    and model_version = {featureSetVersion} 
+            JOIN {data_conf["dataScience_db_name"]}.v_lastest_object_cluster cr 
+                on ( md.{objectType} = cr.object_id )
+            join {data_conf["dataScience_db_name"]}.cluster_explainability ce 
+                on (ce.cluster_id = cr.cluster_id) 
+            where md.fc_agg_summary_date = {hyperparams['training_date']}
+                and mf.column_name = '{feature_name}'
+                and ce.feature = '{feature_name}'
+                and cr.datascience_model_version = '{modelVersion}' 
+                and ce.datascience_model_version = '{modelVersion}' 
+                and is_anomaly = 1 
+                and model_id= {featureSetId} 
+                and model_version = {featureSetVersion} 
                 """
         print("======")
         print(sql)
@@ -327,19 +329,21 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
         clusterMin = clusterMaxScore[f"cluster_{i}_min"]
         clusterRange = clusterMaxScore[f"cluster_{i}_max"] - clusterMin
         if clusterRange > 0:
-            sql = f"""insert into {data_conf["dataScience_db_name"]}.anomaly_results
-                        select '{modelVersion}' as datascience_model_version, '{modelId}' as datascience_model_id, 
-                        ard.object_type, ard.object_id, cr.cluster_id, {hyperparams['training_date']}, CURRENT_DATE, 
-                        (SUM(feature_score) - {clusterMin}) / {clusterRange}
-                        FROM {data_conf["dataScience_db_name"]}.anomaly_result_details ard
-                            JOIN {data_conf["dataScience_db_name"]}.v_lastest_object_cluster cr on ( 
-                                ard.object_id = cr.object_id  and 
-                                ard.datascience_model_version = cr.datascience_model_version)
-                        where ard.as_of_date = {hyperparams['training_date']}
-                            and ard.score_date = CURRENT_DATE
-                            and cr.cluster_id = {i}
-                        group by ard.object_type, ard.object_id, cr.cluster_id
-                    """
+            sql = f"""
+            insert into {data_conf["dataScience_db_name"]}.anomaly_results
+            select '{modelVersion}' as datascience_model_version, 
+                '{modelId}' as datascience_model_id, ard.object_type, 
+                ard.object_id, cr.cluster_id, {hyperparams['training_date']}, 
+                CURRENT_DATE, (SUM(feature_score) - {clusterMin}) / {clusterRange}
+            FROM {data_conf["dataScience_db_name"]}.anomaly_result_details ard
+                JOIN {data_conf["dataScience_db_name"]}.v_lastest_object_cluster cr 
+                    on ( ard.object_id = cr.object_id  
+                        and ard.datascience_model_version = cr.datascience_model_version)
+            where ard.as_of_date = {hyperparams['training_date']}
+                and ard.score_date = CURRENT_DATE
+                and cr.cluster_id = {i}
+            group by ard.object_type, ard.object_id, cr.cluster_id
+            """
         
             print(sql)
             try:
@@ -349,89 +353,7 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
                 print(inst)
         
     fcUtils.close_connection()
-#     for index, scoreRow in dfScoreData.iterrows():
-#         objectCount += 1
-#         clusterId = int(scoreRow['cluster_id'])
-#         rawScore = 0.0
-#         for index2, featureRow in featureWeightDef.iterrows():
-#             if int(featureRow['cluster_id']) == clusterId:
-#                 featCount += 1
-#                 featValue = scoreRow[featureRow['column_name']]
-#                 avgValue = featureRow['avg_value']
-#                 stdValue = featureRow['std_value']
-#                 posWeight = featureRow['anomaly_pos_weight']
-#                 negWeight = featureRow['anomaly_neg_weight']
-#                 
-#                 featScore = 0
-#                 try:
-#                     featScore = (abs((featValue - avgValue) /stdValue) * (posWeight if featValue > avgValue else negWeight))
-#                 except Exception as inst:
-#                     #do nothing
-#                     featScore = 0
-#                 
-#                 rawScore += featScore
-#                 #print(f"feature: {featureRow['column_name']}, featValue: {featValue}, avgValue: {avgValue}, stdValue: {stdValue}, posWeight: {posWeight}, negweight: {negWeight}, rawScore: {rawScore}")
-#         
-#                 scoredFeat = {
-#                     "datascience_model_version" : modelVersion,
-#                     "datascience_model_id" : modelId,  
-#                     "object_type" : objectType,
-#                     "object_id"  : int(scoreRow[objectType]),
-#                     "as_of_date" : someDate,
-#                     "score_date" : scoreingDate,
-#                     "feature"    : featureRow['column_name'],
-#                     "feature_value" : featValue,
-#                     "feature_score" : featScore}
-#                 dfScoredFeats = dfScoredFeats.append(scoredFeat, ignore_index=True)
-#         
-#         if featCount > 25000:
-#             print(f"    {datetime.now()}: saving batch at object {objectCount}")
-#             # save the feature details in batches of 25k rows 
-#             copy_to_sql(dfScoredFeats,
-#                     table_name="anomaly_result_details", if_exists="append", 
-#                     schema_name=data_conf["dataScience_db_name"])
-#             featCount = 0
-#             print(f"    {datetime.now()}:")
-#             dfScoredFeats = pd.DataFrame(columns=featsColList)
-#             
-#             
-#         # Save the scores to the DB
-#         clusterMin = clusterMaxScore[f"cluster_{clusterId}_min"]
-#         clusterRange = clusterMaxScore[f"cluster_{clusterId}_max"] - clusterMin
-#         score = (rawScore - clusterMin) / clusterRange
-#         
-#         scoredObject = {
-#             "datascience_model_version" : modelVersion,
-#             "datascience_model_id" : modelId,  
-#             "object_type" : objectType,
-#             "object_id" : int(scoreRow[objectType]),
-#             "cluster_id" :  clusterId,
-#             "as_of_date" :  someDate,
-#             "score_date" :  scoreingDate,
-#             "anomaly_score" : score}
-# 
-#         dfScoreResults = dfScoreResults.append(scoredObject, ignore_index=True)
-#         
-#         if score >= alertConfig.alertThreshold:
-#             alertManager.createAlert(scoredObject)
-# 
-#     if featCount > 0:
-#         # save the remaining feature details to the DB        
-#         copy_to_sql(dfScoredFeats,
-#                 table_name="anomaly_result_details", if_exists="append", 
-#                 schema_name=data_conf["dataScience_db_name"])
-#        
-# 
-#     # Save the scores to the DB
-#     copy_to_sql(dfScoreResults,
-#             table_name="anomaly_results", if_exists="append", 
-#             schema_name=data_conf["dataScience_db_name"])
-#     
-#     # Save the alerts to the DB
-#     alertManager.commit()
-    
-    
-    
+
 
 def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, model_ID, model_version, conn):
     print("====>Reclustering started...")
@@ -493,12 +415,17 @@ def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, mod
 
     anomaly_features_names = anomaly_features_names.split(",")
     for anom_feature in anomaly_features_names:    
-        sql = f"""Update A
+        sql = f"""
+            Update A
             from {data_conf["dataScience_db_name"]}.cluster_explainability A, 
-            (select '{model_version}' as datascience_model_version, '{model_ID}' as datascience_model_id, cluster_id, '{anom_feature}' as feature, 
-                avg({anom_feature}) avg_value, min({anom_feature}) min_value, max({anom_feature}) max_value, stddev_pop({anom_feature}) std_value
-                from {viewName} md JOIN
-                    {data_conf["dataScience_db_name"]}.cluster_results cr on (md.{ID} = cr.object_id 
+            (select '{model_version}' as datascience_model_version, 
+                '{model_ID}' as datascience_model_id, cluster_id, 
+                '{anom_feature}' as feature, avg({anom_feature}) avg_value, 
+                min({anom_feature}) min_value, max({anom_feature}) max_value, 
+                stddev_pop({anom_feature}) std_value
+            from {viewName} md 
+                JOIN {data_conf["dataScience_db_name"]}.cluster_results cr 
+                    on (md.{ID} = cr.object_id 
                         and cr.datascience_model_version = '{model_version}'
                         and cr.object_type = '{ID}'
                         and md.fc_agg_summary_date = cr.fc_agg_summary_date
@@ -520,5 +447,7 @@ def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, mod
         try:
             conn.execute(sql)
         except Exception as inst:
-            print("error creating feature value, this can happen when a feature is used for clustering and anomaly detection and can be ignored for duplicate row errors")
+            print("""error creating feature value, 
+                this can happen when a feature is used for clustering and anomaly 
+                detection and can be ignored for duplicate row errors""")
             print(inst)

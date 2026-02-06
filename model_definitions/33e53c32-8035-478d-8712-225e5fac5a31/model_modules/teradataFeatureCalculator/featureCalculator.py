@@ -27,10 +27,13 @@ def getFeatureSet(featureSetId, featureSetVersion, conn):
         featureSetVersion: Feature Calculator feature set version
         conn: database connection
     """
-    print(f"====>model_features {storage.featureStore_db_name}, {storage.dataScience_db_name}, {storage.metadata_db_name}")
-    meta_data = pd.read_sql(f"""select model_version,model_id,column_name, is_cluster,ml_type 
+    print(f"====>model_features {storage.featureStore_db_name}, 
+        {storage.dataScience_db_name}, {storage.metadata_db_name}")
+    meta_data = pd.read_sql(f"""
+        select model_version,model_id,column_name, is_cluster,ml_type 
         from {storage.metadata_db_name}.v_model_feature 
         where model_id={featureSetId} and model_version = {featureSetVersion}""" ,conn)
+
     #features_names = ",".join(meta_data[(meta_data['ml_type'] == 2) & (meta_data['is_cluster'] == 1)]['column_name'].tolist())
     
     ID = meta_data[meta_data['ml_type'] == 1]['column_name'].values[0]
@@ -43,10 +46,14 @@ def getClusteredFeatures( featureSetId, featureSetVersion, conn):
         featureSetVersion: Feature Calculator feature set version
         conn: database connection
     """
-    print(f"====>model_features {storage.featureStore_db_name}, {storage.dataScience_db_name}, {storage.metadata_db_name}")
-    meta_data = pd.read_sql(f"""select model_version,model_id,column_name, is_cluster,ml_type, ds_type 
+    print(f"====>model_features {storage.featureStore_db_name}, 
+        {storage.dataScience_db_name}, {storage.metadata_db_name}")
+    
+    meta_data = pd.read_sql(f"""
+        select model_version,model_id,column_name, is_cluster,ml_type, ds_type 
         from {storage.metadata_db_name}.v_model_feature 
         where model_id={featureSetId} and model_version = {featureSetVersion}""" ,conn)
+    
     # Get a list of all features that are to be clustered
     cluster_features_names = ",".join(meta_data[(meta_data['ml_type'] == 2) & (meta_data['is_cluster'] == 1)]['column_name'].tolist())
     # Get a list of cluster features that are numeric 
@@ -77,16 +84,20 @@ def getUnclusterDataSet(featureSetId, featureSetVersion, trainingDate, model_ver
     """ 
     cluster_features_names,numeric_feature_names,categoric_feature_names, ID = getClusteredFeatures(featureSetId, featureSetVersion, conn)
 
-    sqlStmt = f"""select {ID},fc_agg_summary_date,{cluster_features_names} 
+    sqlStmt = f"""
+        select {ID},fc_agg_summary_date,{cluster_features_names} 
         from {storage.featureStore_db_name}.v_modelDefinition_{featureSetId}_{featureSetVersion} 
         where fc_agg_summary_date={trainingDate} and 
-            {ID} not in (select object_id 
-                from {storage.dataScience_db_name}.cluster_results 
-                where object_type = '{ID}' and datascience_model_version = '{model_version}')"""
+            {ID} not in 
+            (select object_id 
+            from {storage.dataScience_db_name}.cluster_results 
+            where object_type = '{ID}' and datascience_model_version = '{model_version}'
+        )"""
                 
     print(sqlStmt)
     X = pd.read_sql_query(sqlStmt,conn)
     return X
+    
 def getDataSet(featureSetId, featureSetVersion, scoringDate, conn):
     """Return a dataframe with the rows/columns needed for anomaly detection
         scoringDate: The feature calculator as_of_date for feature values
@@ -95,9 +106,11 @@ def getDataSet(featureSetId, featureSetVersion, scoringDate, conn):
     featureSetNames,ID = getFeatureSetNames(featureSetId, featureSetVersion, conn)
     
     columnNames = ",".join(featureSetNames['column_name'].tolist())
-    sqlStmt = f"""select fc_agg_summary_date,{columnNames} 
+    sqlStmt = f"""
+        select fc_agg_summary_date,{columnNames} 
         from {storage.featureStore_db_name}.v_modelDefinition_{featureSetId}_{featureSetVersion} 
         where fc_agg_summary_date={scoringDate}"""
+    
     print(sqlStmt)
     X = pd.read_sql_query(sqlStmt,conn)
     return X
@@ -105,9 +118,12 @@ def getDataSet(featureSetId, featureSetVersion, scoringDate, conn):
 def getClusteredFeatureWeights(featureSetId, featureSetVersion, conn):
     print("====>model_feature weights for anomaly scoring")
     print("step_1")
-    meta_data = pd.read_sql(f"""select feature, column_name,is_cluster,is_anomaly,anomaly_pos_weight,anomaly_neg_weight,ml_type 
+    meta_data = pd.read_sql(f"""
+        select feature, column_name,is_cluster,is_anomaly,anomaly_pos_weight,
+            anomaly_neg_weight, ml_type 
         from {storage.metadata_db_name}.v_model_feature 
         where model_id={featureSetId} and model_version = {featureSetVersion}""" ,conn)
+    
     print("step_2")
     anomaly_features_names = ",".join(meta_data[(meta_data['ml_type'] == 2) & (meta_data['is_anomaly'] == 1)]['column_name'].tolist())
     anomaly_features_pos_weights = meta_data[(meta_data['ml_type'] == 2) & (meta_data['is_anomaly'] == 1)]['anomaly_pos_weight']
@@ -121,7 +137,8 @@ def getFeatureSetwithCluster(featureSetId, featureSetVersion, modelVersion, clus
     
     anomaly_features_names,anomaly_features_pos_weights,anomaly_features_neg_weights,ID = getClusteredFeatureWeights(featureSetId, featureSetVersion, conn)
     
-    sql = f"""select {ID}, cluster_id, {anomaly_features_names}
+    sql = f"""
+        select {ID}, cluster_id, {anomaly_features_names}
         from {storage.featureStore_db_name}.v_modelDefinition_{featureSetId}_{featureSetVersion} md 
         JOIN {storage.dataScience_db_name}.v_lastest_object_cluster cr on ( 
             md.{ID} = cr.object_id 
@@ -136,12 +153,14 @@ def getFeatureSetwithCluster(featureSetId, featureSetVersion, modelVersion, clus
 def getModelMaxScore(featureSetId, featureSetVersion, modelVersion, conn):
     print("====>getModelMaxScore")
     
-    sql = f"""select cluster_id, mf.feature,column_name,anomaly_pos_weight,anomaly_neg_weight,min_value, avg_value, max_value, std_value 
+    sql = f"""
+        select cluster_id, mf.feature,column_name,anomaly_pos_weight,
+            anomaly_neg_weight,min_value, avg_value, max_value, std_value 
         from {storage.metadata_db_name}.v_model_feature mf 
-        join {storage.dataScience_db_name}.cluster_explainability ce on (
-            mf.column_name = ce.feature) 
-        where is_anomaly = 1 and 
-        model_id={featureSetId} and model_version = {featureSetVersion}
+        join {storage.dataScience_db_name}.cluster_explainability ce 
+            on (mf.column_name = ce.feature) 
+        where is_anomaly = 1 
+        and model_id={featureSetId} and model_version = {featureSetVersion}
         and datascience_model_version = '{modelVersion}'
         order by cluster_id""" 
         
@@ -210,7 +229,10 @@ def getModelMaxScore(featureSetId, featureSetVersion, modelVersion, conn):
 
 def getStoredModel(model_version, conn):
     model_df = pd.read_sql(
-        f"""select model from {storage.dataScience_db_name}.model_artifacts where model_version='{model_version}'""",
+        f"""
+            select model 
+            from {storage.dataScience_db_name}.model_artifacts 
+            where model_version='{model_version}'""",
         conn)
     model = pickle.loads(model_df['model'][0])
     
