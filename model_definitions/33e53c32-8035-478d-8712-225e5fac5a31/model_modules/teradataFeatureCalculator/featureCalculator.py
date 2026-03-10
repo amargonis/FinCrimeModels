@@ -27,8 +27,7 @@ def getFeatureSet(featureSetId, featureSetVersion, conn):
         featureSetVersion: Feature Calculator feature set version
         conn: database connection
     """
-    print(f"====>model_features {storage.featureStore_db_name}, 
-        {storage.dataScience_db_name}, {storage.metadata_db_name}")
+    print(f"====>model_features {storage.featureStore_db_name},{storage.dataScience_db_name}, {storage.metadata_db_name}")
     meta_data = pd.read_sql(f"""
         select model_version,model_id,column_name, is_cluster,ml_type 
         from {storage.metadata_db_name}.v_model_feature 
@@ -46,8 +45,7 @@ def getClusteredFeatures( featureSetId, featureSetVersion, conn):
         featureSetVersion: Feature Calculator feature set version
         conn: database connection
     """
-    print(f"====>model_features {storage.featureStore_db_name}, 
-        {storage.dataScience_db_name}, {storage.metadata_db_name}")
+    print(f"====>model_features {storage.featureStore_db_name}, {storage.dataScience_db_name}, {storage.metadata_db_name}")
     
     meta_data = pd.read_sql(f"""
         select model_version,model_id,column_name, is_cluster,ml_type, ds_type 

@@ -17,7 +17,7 @@ def create_connection(data_conf):
         host=os.environ["AOA_CONN_HOST"], 
         username=os.environ["AOA_CONN_USERNAME"], 
         password=os.environ["AOA_CONN_PASSWORD"],
-        logmech=os.environ["AOA_CONN_LOG_MECH"], "LDAP")
+        logmech=logmech)
     conn = eng.connect()
     return conn
 

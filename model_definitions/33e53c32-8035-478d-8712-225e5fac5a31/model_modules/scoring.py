@@ -4,11 +4,13 @@ from sklearn.preprocessing import StandardScaler
 import os,json,uuid
 from teradataml.dataframe.copy_to import copy_to_sql
 from teradataml.context.context import *
+from sqlalchemy import text
 from datetime import datetime
 from scipy.spatial import distance_matrix
-from .teradataFeatureCalculator import featureCalculator as tdFC
-from .teradataFinCrimeUtils import fcUtils as fcUtils
-from .teradataFinCrimeAlerts import finCrimeAlerts as fcAlerts
+import teradataFinCrimeAlerts.finCrimeAlerts as fcAlerts
+import teradataFeatureCalculator.featureCalculator as tdFC
+import teradataFinCrimeUtils.fcUtils as fcUtils
+
 from datetime import datetime
 from aoa import (
     record_scoring_stats,
@@ -16,19 +18,22 @@ from aoa import (
     ModelContext
 )
 
-def process_metadata(model_version, model_ID, data_conf, anomaly_all_data_table_name, as_of_date ,timestamp):
+def process_metadata(model_version, model_ID, data_conf, 
+    anomaly_all_data_table_name, as_of_date ,timestamp):
+    
     local_exp_metadata = pd.DataFrame(
         columns=["model_version", "model_id", "database_name",
-                 "anomaly_results_table", "scoring_table", "as_of_date", "job_trigger_timestamp"])
+                "anomaly_results_table", "scoring_table", "as_of_date", 
+                "job_trigger_timestamp"])
 
-    local_exp_metadata = local_exp_metadata.append({"model_version": model_version,
-                                                    "model_id": model_ID,
-                                                    "database_name": data_conf["datascience_db"],
-                                                    "anomaly_results_table": anomaly_all_data_table_name,
-                                                    "scoring_table":data_conf["Score_ADS_name"],
-                                                    "as_of_date": as_of_date,
-                                                    "job_trigger_timestamp": timestamp
-                                                    }, ignore_index=True)
+    local_exp_metadata = local_exp_metadata.append(
+        {"model_version": model_version.strip(),
+        "model_id": model_ID.strip(),
+        "database_name": data_conf["datascience_db"],
+        "anomaly_results_table": anomaly_all_data_table_name,
+        "scoring_table":data_conf["Score_ADS_name"],
+        "as_of_date": as_of_date,
+        "job_trigger_timestamp": timestamp}, ignore_index=True)
 
     copy_to_sql(df=local_exp_metadata, table_name="AML_scoring_metadata",
                 schema_name=data_conf["datascience_db"],
@@ -47,13 +52,19 @@ def reconvert_date(dateObj):
 def generate_alert(data_conf, all_alert_ads, crime_type, model_version , model_ID, as_of_date, conn):  # local_exp contains scoring results
     fcAlerts.create_tables(data_conf)
     alert_ads = all_alert_ads[all_alert_ads['Score'] >= data_conf["alert_threshold"]]
-    carry_over_custom = fcAlerts.suppress_custom_alert(data_conf, alert_ads, crime_type, model_version , model_ID, as_of_date, conn)
+    carry_over_custom = fcAlerts.suppress_custom_alert(
+        data_conf, alert_ads, crime_type, 
+        model_version , model_ID, as_of_date, conn)
+    
     if not carry_over_custom.empty:
-        carry_over_open = fcAlerts.suppress_open_alert(data_conf, carry_over_custom, crime_type, model_version , model_ID, as_of_date, conn)
+        carry_over_open = fcAlerts.suppress_open_alert(
+            data_conf, carry_over_custom, crime_type, 
+            model_version , model_ID, as_of_date, conn)
         if not carry_over_open.empty:
-            fcAlerts.suppress_closed_alert(data_conf, carry_over_open, crime_type, model_version , model_ID, as_of_date, conn)   
-            
-            
+            fcAlerts.suppress_closed_alert(
+                data_conf, carry_over_open, crime_type, 
+                model_version , model_ID, as_of_date, conn)   
+
 def get_priority_level(prob):
     if prob < 0.6:
         return "Low"
@@ -77,7 +88,9 @@ def generateAlerts(data_conf, model_conf, **kwargs):
     
     # connect to the Teradata system
     conn = fcUtils.create_connection(data_conf)
-    tdFC.initFC(data_conf["featureStore_db_name"], data_conf["dataScience_db_name"], data_conf["metadata_db_name"] )
+    tdFC.initFC(data_conf["featureStore_db_name"], 
+        data_conf["dataScience_db_name"], 
+        data_conf["metadata_db_name"] )
     print("step_1")
     
     # Feature Calculator feature set ID and version
@@ -105,12 +118,13 @@ def generateAlerts(data_conf, model_conf, **kwargs):
     else:
         someDate = datetime.strptime(hyperparams["scoring_date"].split("'")[1], '%Y-%m-%d')
         
-    sql = f"""select object_type, object_id, cluster_id, as_of_date, anomaly_score
-        from {data_conf["dataScience_db_name"]}.anomaly_results
-        where as_of_date = {hyperparams["scoring_date"]} 
-            and datascience_model_version = '{modelVersion}' 
-            and anomaly_score >= {alertConfig.alertThreshold}
-        """
+    sql = text(f"""select object_type, trim(object_id), cluster_id, 
+                as_of_date, anomaly_score
+            from {data_conf["dataScience_db_name"]}.anomaly_results
+            where as_of_date = {hyperparams["scoring_date"]} 
+                and datascience_model_version = '{modelVersion}' 
+                and anomaly_score >= {alertConfig.alertThreshold}
+        """)
     print(sql)
 
     dfAlertCandidates = pd.read_sql_query(sql,conn)
@@ -119,10 +133,10 @@ def generateAlerts(data_conf, model_conf, **kwargs):
     for index, anomalyRow in dfAlertCandidates.iterrows():
         
         scoredObject = {
-            "datascience_model_version" : modelVersion,
-            "datascience_model_id" : modelId,  
+            "datascience_model_version" : str(modelVersion).strip(),
+            "datascience_model_id" : str(modelId).strip(),  
             "object_type" : anomalyRow['object_type'],
-            "object_id" : int(anomalyRow['object_id']),
+            "object_id" : str(anomalyRow['object_id']).strip(),
             "cluster_id" :  anomalyRow['cluster_id'],
             "as_of_date" :  someDate,
             "score_date" :  scoreingDate,
@@ -195,14 +209,14 @@ def evaluate(context: ModelContext, **kwargs):
     
     fcUtils.close_connection()
 
-def score(context: ModelContext, db=None, deploy=True, **kwargs):
+def score(data_conf, model_conf, **kwargs):
     print("====>Scoring started..")
     
-    aoa_create_context()
-    data_conf = context.dataset_info.legacy_data_conf
-    hyperparams = context.hyperparams
+    #aoa_create_context()
+    #data_conf = context.dataset_info.legacy_data_conf
+    #hyperparams = context.hyperparams
 
-    #hyperparams = model_conf["hyperParameters"]
+    hyperparams = model_conf["hyperParameters"]
 
     # AOA model ID and Version GUID
     modelVersion = kwargs.get("model_version")
@@ -286,11 +300,11 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
     anomaly_features_names = anomaly_features_names.split(",")
     for feature_name in anomaly_features_names:
         #feature_name = featureRow['column_name']
-        sql = f"""
+        sql = text(f"""
             insert into {data_conf["dataScience_db_name"]}.anomaly_result_details 
-            select '{modelVersion}' as datascience_model_version, 
-                '{modelId}' as datascience_model_id, '{objectType}',
-                {objectType}, {hyperparams['training_date']}, CURRENT_DATE,
+            select trim('{modelVersion}') as datascience_model_version, 
+                trim('{modelId}') as datascience_model_id, '{objectType}',
+                trim({objectType}), {hyperparams['training_date']}, CURRENT_DATE,
                 '{feature_name}' as feature, {feature_name} as feature_value,
                 case 
                     when feature_value > avg_value and std_value > 0
@@ -314,7 +328,7 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
                 and is_anomaly = 1 
                 and model_id= {featureSetId} 
                 and model_version = {featureSetVersion} 
-                """
+                """)
         print("======")
         print(sql)
         try:
@@ -329,11 +343,11 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
         clusterMin = clusterMaxScore[f"cluster_{i}_min"]
         clusterRange = clusterMaxScore[f"cluster_{i}_max"] - clusterMin
         if clusterRange > 0:
-            sql = f"""
+            sql = text(f"""
             insert into {data_conf["dataScience_db_name"]}.anomaly_results
-            select '{modelVersion}' as datascience_model_version, 
-                '{modelId}' as datascience_model_id, ard.object_type, 
-                ard.object_id, cr.cluster_id, {hyperparams['training_date']}, 
+            select trim('{modelVersion}') as datascience_model_version, 
+                trim('{modelId}') as datascience_model_id, ard.object_type, 
+                trim(ard.object_id), cr.cluster_id, {hyperparams['training_date']}, 
                 CURRENT_DATE, (SUM(feature_score) - {clusterMin}) / {clusterRange}
             FROM {data_conf["dataScience_db_name"]}.anomaly_result_details ard
                 JOIN {data_conf["dataScience_db_name"]}.v_lastest_object_cluster cr 
@@ -343,8 +357,7 @@ def score(context: ModelContext, db=None, deploy=True, **kwargs):
                 and ard.score_date = CURRENT_DATE
                 and cr.cluster_id = {i}
             group by ard.object_type, ard.object_id, cr.cluster_id
-            """
-        
+            """)
             print(sql)
             try:
                 conn.execute(sql)
@@ -394,10 +407,10 @@ def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, mod
     
         print("saving new cluster data")
         cluster_scores = {}
-        cluster_scores['datascience_model_version'] = model_version
-        cluster_scores['datascience_model_id'] = model_ID
+        cluster_scores['datascience_model_version'] = model_version.strip()
+        cluster_scores['datascience_model_id'] = model_ID.strip()
         cluster_scores['object_type'] = ID
-        cluster_scores['object_id'] = IDs_date[ID]
+        cluster_scores['object_id'] = IDs_date[ID].strip()
         cluster_scores['fc_agg_summary_date'] = someDate
         cluster_scores['score_date'] = datetime.now().strftime("%Y-%m-%d")
         cluster_scores['cluster_id'] = preds
@@ -415,7 +428,7 @@ def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, mod
 
     anomaly_features_names = anomaly_features_names.split(",")
     for anom_feature in anomaly_features_names:    
-        sql = f"""
+        sql = text(f"""
             Update A
             from {data_conf["dataScience_db_name"]}.cluster_explainability A, 
             (select '{model_version}' as datascience_model_version, 
@@ -441,7 +454,7 @@ def recluster(tdFC, data_conf, featureSetId, featureSetVersion, hyperparams, mod
                 and A.feature = '{anom_feature}'
                 and A.datascience_model_version = '{model_version}' 
                 and A.datascience_model_id = '{model_ID}'
-            """
+            """)
              
         print(sql)
         try:

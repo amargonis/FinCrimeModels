@@ -9,8 +9,9 @@ from sklearn.cluster import KMeans
 from teradataml.dataframe.copy_to import copy_to_sql
 from teradataml.context.context import *
 from sklearn.ensemble import RandomForestClassifier
-from .teradataFeatureCalculator import featureCalculator as tdFC
-from .teradataFinCrimeUtils import fcUtils as fcUtils
+from sqlalchemy import text
+import teradataFeatureCalculator.featureCalculator as tdFC
+import teradataFinCrimeUtils.fcUtils as fcUtils
 from datetime import datetime
 from aoa import (
     record_scoring_stats,
@@ -19,21 +20,34 @@ from aoa import (
 )
 
 def delete_record_if_exists(db_name, model_version, conn):
-    conn.execute(f"""
+    conn.execute(text(f"""
         delete from {db_name}.models_artifacts 
-        WHERE model_version='{model_version}'""" )
+        WHERE model_version='{model_version}'"""))
 
 def loadModel(data_conf, clustered_model, featureSetVersion, featureSetId, model_version, model_ID, conn):
 
     clustered_model_bytes = pickle.dumps(clustered_model)
-    conn.execute(f"""
-        insert into {data_conf["dataScience_db_name"]}.model_artifacts 
+    sql = text(f"""insert into {data_conf["dataScience_db_name"]}.model_artifacts 
             (model_version, model_id, model, featureset_version, featureset_id) 
-            values(?,?,?,?,?)""",
-        [str(model_version), str(model_ID), clustered_model_bytes, 
-            str(featureSetVersion), str(featureSetId)])
+            VALUES (:ver, :id, :model, :fs_ver, :fs_id);""")
 
-def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, no_of_clusters, centroids, avg_values, min_values, max_values, std_values, model_version, model_ID, dataset_version, featureSetId, data_conf):
+    vals = {
+        "ver": str(model_version),
+        "id": str(model_ID),
+        "model": clustered_model_bytes,
+        "fs_ver": str(featureSetVersion),
+        "fs_id": str(featureSetId)
+    }
+
+    conn.execute(statement=sql, parameters=vals)
+        
+
+def cluster_explainability(conn, anomaly_features_names, 
+                ID, data, clusterDate, no_of_clusters, 
+                centroids, avg_values, min_values, 
+                max_values, std_values, model_version, 
+                model_ID, dataset_version, featureSetId, data_conf):
+
     print("=== Cluster Explainability ===")
     print(anomaly_features_names);
     
@@ -45,9 +59,11 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
     
     # 1.0
     #
-    # using the clustered data, train a predictive model to predict the cluster that has already been applied
-    #  then, use standard explainability on the predictive model to determine the feature importance 
-    #  for predicting the cluster.
+    # using the clustered data, train a predictive model to predict the 
+    # cluster that has already been applied
+    #  then, use standard explainability on the predictive model 
+    # to determine the feature importance for predicting the cluster.
+        
     for i in range(no_of_clusters):
         positive_cluster = data[data["cluster_id"] == i]
         negative_cluster = data[data["cluster_id"] != i]
@@ -67,7 +83,9 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
         models[i] = model
         feats = {}  # a dict to hold feature_name: feature_importance
        
-        for feature, importance, centroid in zip(X.columns, model.feature_importances_, centroids.iloc[i]):
+        for feature, importance, centroid in zip(
+            X.columns, model.feature_importances_, centroids.iloc[i]):
+ 
             # feats[feature] = importance
             # feats[feature] = i
             # feats[feature] = centroids.iloc[i].values
@@ -76,7 +94,8 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
             g_exp.loc[len(g_exp.index)] = [model_version, 
                 model_ID, i, feature, importance,centroid,
                 avg_values.iloc[i].get(feature), float(min_values.iloc[i].get(feature)),
-                float(max_values.iloc[i].get(feature)), float(std_values.iloc[i].get(feature))]
+                float(max_values.iloc[i].get(feature)), 
+                float(std_values.iloc[i].get(feature))]
     
     try:
         copy_to_sql(g_exp,
@@ -93,11 +112,11 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
 
     viewName = f"""{data_conf["featureStore_db_name"]}.v_modelDefinition_{featureSetId}_{dataset_version}"""
 
-    sql = f"""replace view {data_conf['dataScience_db_name']}.v_featureCluster as 
+    sql = text(f"""replace view {data_conf['dataScience_db_name']}.v_featureCluster as 
         Select datascience_model_version, cluster_id, mvd.* 
         from {viewName} mvd 
             join {data_conf['dataScience_db_name']}.cluster_results cr 
-            on ({ID} = cr.object_id and cr.object_type = '{ID}')""" 
+            on ({ID} = cr.object_id and cr.object_type = '{ID}')""")
 
     try:
         conn.execute(sql)
@@ -107,7 +126,7 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
         
     # For each cluster, build the histogram
     for i in range(no_of_clusters):
-        sql = f"""call {data_conf["analyticsLibrary_db_name"]}.td_analyze('histogram',
+        sql = text(f"""call {data_conf["analyticsLibrary_db_name"]}.td_analyze('histogram',
             'database={data_conf['dataScience_db_name']}; 
             tablename=v_featureCluster; 
             columns={anomaly_features_names};
@@ -116,17 +135,18 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
             overwrite=true;
             where=datascience_model_version=''{model_version}'' and cluster_id={i}
             ')
-            """
+            """)
         try:
+            print(sql)
             conn.execute(sql)
         except Exception as inst:
             print("error running td_analyze")
             print(inst)
         
-        sql = f"""insert into {data_conf["dataScience_db_name"]}.cluster_distribution 
+        sql = text(f"""insert into {data_conf["dataScience_db_name"]}.cluster_distribution 
             select '{model_version}', {i}, xcol, xbin, xbeg, xend, xcnt, xpct 
             from {data_conf["dataScience_db_name"]}.feature_distribution_temp;
-            """
+            """)
         try:
             conn.execute(sql)
         except Exception as inst:
@@ -142,10 +162,11 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
     
     anomaly_features_names = anomaly_features_names.split(",")
     for anom_feature in anomaly_features_names:    
-        sql = f"""insert into {data_conf["dataScience_db_name"]}.cluster_explainability 
+        sql = text(f"""insert into {data_conf["dataScience_db_name"]}.cluster_explainability 
             (datascience_model_version, datascience_model_id, cluster_id, 
                 feature, avg_value, min_value, max_value, std_value )
-            select '{model_version}', '{model_ID}', cluster_id, '{anom_feature}', 
+            select trim('{model_version}'), trim('{model_ID}'), 
+                cluster_id, '{anom_feature}', 
                 avg({anom_feature}), min({anom_feature}), max({anom_feature}), 
                 stddev_pop({anom_feature})
             from {viewName} md 
@@ -153,8 +174,7 @@ def cluster_explainability(conn, anomaly_features_names, ID, data, clusterDate, 
                 on (md.{ID} = cr.object_id and cr.object_type = '{ID}'
                     and md.fc_agg_summary_date = cr.fc_agg_summary_date
                     and md.fc_agg_summary_date = {clusterDate})
-            group by cluster_id"""
-            
+            group by cluster_id""")
         print(sql)
         try:
             conn.execute(sql)
@@ -195,11 +215,9 @@ def train(data_conf, model_conf, **kwargs):
 
     # Get a list of columns to cluster and the primary ID column 
     #  of the feature set (ID = object that is being clustered against)
-    cluster_features_names,numeric_feature_names, categoric_feature_names, ID = 
-        tdFC.getClusteredFeatures(featureSetId, featureSetVersion, conn)
+    cluster_features_names,numeric_feature_names, categoric_feature_names, ID = tdFC.getClusteredFeatures(featureSetId, featureSetVersion, conn)
         
-    anomaly_features_names,anomaly_features_pos_weights,anomaly_features_neg_weights,ID = 
-        tdFC.getClusteredFeatureWeights(featureSetId, featureSetVersion, conn)
+    anomaly_features_names,anomaly_features_pos_weights,anomaly_features_neg_weights,ID = tdFC.getClusteredFeatureWeights(featureSetId, featureSetVersion, conn)
     
     print("step_2")
     # get the data set to perform clustering
@@ -272,10 +290,10 @@ def train(data_conf, model_conf, **kwargs):
         print(f"step_9_2 {someDate}")
      
     cluster_scores = {}
-    cluster_scores['datascience_model_version'] = model_version
-    cluster_scores['datascience_model_id'] = model_ID
+    cluster_scores['datascience_model_version'] = str(model_version).strip()
+    cluster_scores['datascience_model_id'] = str(model_ID).strip()
     cluster_scores['object_type'] = ID
-    cluster_scores['object_id'] = IDs_date[ID]
+    cluster_scores['object_id'] = IDs_date[ID].astype(str).str.strip()
     cluster_scores['fc_agg_summary_date'] = someDate
     cluster_scores['score_date'] = datetime.now().strftime("%Y-%m-%d")
     cluster_scores['cluster_id'] = preds
@@ -299,3 +317,34 @@ def train(data_conf, model_conf, **kwargs):
         str(featureSetVersion), str(featureSetId), data_conf)
 
     fcUtils.close_connection()
+
+import pandas as pd
+import numpy as np
+
+
+
+def get_all_histograms(df, columns, bins=10):
+    all_results = {}
+    
+    for col in columns:
+        # Drop NaNs to avoid errors in calculation
+        data = df[col].dropna()
+        
+        # Calculate counts and bin edges (min-max/10 logic)
+        counts, bin_edges = np.histogram(data, bins=bins)
+        total = counts.sum()
+        
+        # Build the summary table for this column
+        hist_df = pd.DataFrame({
+            'bin_id': range(1, bins + 1),
+            'start_val': bin_edges[:-1],
+            'end_val': bin_edges[1:],
+            'count': counts,
+            'percent': (counts / total) * 100 if total > 0 else 0
+        })
+        
+        all_results[col] = hist_df
+        
+    return all_results
+
+

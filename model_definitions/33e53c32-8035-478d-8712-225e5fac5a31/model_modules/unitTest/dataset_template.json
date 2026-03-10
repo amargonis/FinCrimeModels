@@ -1,10 +1,10 @@
 {
-	"hostname": "44.232.94.89",
-	"featureStore_db_name": "HCLS",
-	"dataScience_db_name": "HCLS_modelstudio",
-	"metadata_db_name": "HCLS_modelstudio",
+	"hostname": "tdprd.td.teradata.com",
+	"featureStore_db_name": "fincrime_features_dev",
+	"dataScience_db_name": "fincrime_modelstudio_dev",
+	"metadata_db_name": "fincrime_modelstudio_dev",
   	"analyticsLibrary_db_name": "TRNG_XSP",
-  	"featureSetVersion": "1",
-  	"featureSetId": "1",
-  	"alert_db":"HCLS_modelstudio"
+  	"featureSetVersion": "4",
+  	"featureSetId": "2",
+  	"alert_db":"fincrime_modelstudio_dev"
 }

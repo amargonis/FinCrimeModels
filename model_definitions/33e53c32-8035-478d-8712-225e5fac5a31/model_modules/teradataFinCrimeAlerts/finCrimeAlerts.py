@@ -83,7 +83,7 @@ class finCrimeAlertManager():
                 scoredObject['as_of_date'],
                 None,
                 scoredObject['object_type'],
-                int(scoredObject['object_id']),
+                str(scoredObject['object_id']).strip(),
                 scoredObject['anomaly_score'],
                 self.alertConfig.alertThreshold,
                 1,
