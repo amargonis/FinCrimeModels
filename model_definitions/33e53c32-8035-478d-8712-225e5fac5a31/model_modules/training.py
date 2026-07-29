@@ -218,7 +218,8 @@ def train(data_conf, model_conf, **kwargs):
     cluster_features_names,numeric_feature_names, categoric_feature_names, ID = tdFC.getClusteredFeatures(featureSetId, featureSetVersion, conn)
         
     anomaly_features_names,anomaly_features_pos_weights,anomaly_features_neg_weights,ID = tdFC.getClusteredFeatureWeights(featureSetId, featureSetVersion, conn)
-    
+    print (f"Anamaly Features====>{anomaly_features_names}")
+    #if inDB == False:
     print("step_2")
     # get the data set to perform clustering
     pdfSourceData = tdFC.getClusterDataSet(featureSetId, featureSetVersion, hyperparams["training_date"], conn )
